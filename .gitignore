@@ -1,0 +1,10 @@
+.vs/
+.dotnet/
+.dotnet9/
+.dotnet-home/
+.dotnet-install.ps1
+**/bin/
+**/obj/
+*.user
+*.suo
+Prompt_selenium/TestResults/
