@@ -8,3 +8,4 @@
 *.user
 *.suo
 Prompt_selenium/TestResults/
+.codex/requirement.md
