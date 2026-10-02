@@ -28,7 +28,7 @@ public sealed class PromptTemplateServiceTests
             Prompt3 = "P3: finalize from the existing chat context"
         };
 
-        PromptTemplateService.Validate(prompts);
+        PromptTemplateService.Validate(prompts, PromptRunMode.ThreePrompts);
         var input1 = PromptTemplateService.RenderForStep(prompts, 1, "original");
         var input2 = PromptTemplateService.RenderForStep(prompts, 2, "original");
         var input3 = PromptTemplateService.RenderForStep(prompts, 3, "original");
@@ -48,7 +48,8 @@ public sealed class PromptTemplateServiceTests
             Prompt3 = "follow up 3"
         };
 
-        var exception = Assert.Throws<InvalidDataException>(() => PromptTemplateService.Validate(prompts));
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            PromptTemplateService.Validate(prompts, PromptRunMode.ThreePrompts));
         Assert.Contains("Prompt 1", exception.Message, StringComparison.Ordinal);
     }
 
@@ -62,8 +63,44 @@ public sealed class PromptTemplateServiceTests
             Prompt3 = "follow up 3"
         };
 
-        var exception = Assert.Throws<InvalidDataException>(() => PromptTemplateService.Validate(prompts));
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            PromptTemplateService.Validate(prompts, PromptRunMode.TwoPrompts));
         Assert.Contains("Prompt 2", exception.Message, StringComparison.Ordinal);
         Assert.Contains("không được chứa", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{{story}}")]
+    public void Validate_TwoPromptModeIgnoresInvalidPrompt3(string prompt3)
+    {
+        var prompts = new PromptSet
+        {
+            Prompt1 = "P1:{{story}}",
+            Prompt2 = "follow up 2",
+            Prompt3 = prompt3
+        };
+
+        PromptTemplateService.Validate(prompts, PromptRunMode.TwoPrompts);
+        Assert.Equal(2, PromptTemplateService.GetStepCount(PromptRunMode.TwoPrompts));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{{story}}")]
+    public void Validate_ThreePromptModeRejectsInvalidPrompt3(string prompt3)
+    {
+        var prompts = new PromptSet
+        {
+            Prompt1 = "P1:{{story}}",
+            Prompt2 = "follow up 2",
+            Prompt3 = prompt3
+        };
+
+        var exception = Assert.Throws<InvalidDataException>(() =>
+            PromptTemplateService.Validate(prompts, PromptRunMode.ThreePrompts));
+
+        Assert.Contains("Prompt 3", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(3, PromptTemplateService.GetStepCount(PromptRunMode.ThreePrompts));
     }
 }

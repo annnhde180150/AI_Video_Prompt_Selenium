@@ -15,7 +15,7 @@
             <Grid>
                 <StackPanel>
                     <TextBlock Text="Prompt Selenium" Foreground="White" FontSize="24" FontWeight="SemiBold" />
-                    <TextBlock Text="Excel → 5 ChatGPT web workers → Prompt 1 → Prompt 2 → Prompt 3 → Final Excel"
+                    <TextBlock Text="{Binding WorkflowSummary}"
                                Foreground="#AAB4C7" Margin="0,4,0,0" />
                 </StackPanel>
                 <Border HorizontalAlignment="Right" VerticalAlignment="Center" Background="#243047" CornerRadius="16" Padding="14,7">
@@ -83,8 +83,11 @@
                                     <ColumnDefinition Width="70" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="Số tab/worker" />
-                                <TextBox Grid.Column="1" Text="{Binding WorkerCount}" HorizontalContentAlignment="Center" />
+                                <TextBox Grid.Column="1" Text="{Binding WorkerCount, UpdateSourceTrigger=PropertyChanged}" HorizontalContentAlignment="Center" />
                             </Grid>
+                            <TextBlock Text="Nếu ChatGPT báo giới hạn hoặc máy quá tải, hãy giảm số worker."
+                                       TextWrapping="Wrap" Foreground="{StaticResource MutedBrush}"
+                                       FontSize="11" Margin="0,5,0,0" />
                             <Grid Margin="0,8,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
@@ -103,6 +106,18 @@
                     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="3. RUN" Foreground="{StaticResource MutedBrush}" FontWeight="SemiBold" />
+                            <TextBlock Text="Prompt flow" Margin="0,10,0,5" />
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Content="Prompt 1 + 2"
+                                             GroupName="PromptFlow"
+                                             IsChecked="{Binding IsTwoPromptMode, Mode=TwoWay}"
+                                             IsEnabled="{Binding IsNotBusy}"
+                                             Margin="0,0,18,0" />
+                                <RadioButton Content="Prompt 1 + 2 + 3"
+                                             GroupName="PromptFlow"
+                                             IsChecked="{Binding IsThreePromptMode, Mode=TwoWay}"
+                                             IsEnabled="{Binding IsNotBusy}" />
+                            </StackPanel>
                             <Button Content="Start Processing" Style="{StaticResource PrimaryButton}" Command="{Binding StartCommand}" IsEnabled="{Binding IsNotBusy}" Margin="0,12,0,0" />
                             <Button Content="Cancel" Command="{Binding CancelCommand}" IsEnabled="{Binding IsBusy}" Margin="0,8,0,0" />
                             <Grid Margin="0,12,0,0">
@@ -159,7 +174,7 @@
         </Grid>
 
         <Border Grid.Row="2" Background="White" BorderBrush="#E4E7EC" BorderThickness="0,1,0,0" Padding="20,9">
-            <TextBlock Text="Mỗi story dùng chat mới; chỉ Prompt 1 gắn story Excel. Prompt 2 và 3 gửi tiếp nguyên văn trong cùng chat."
+            <TextBlock Text="{Binding WorkflowHelpText}"
                        Foreground="{StaticResource MutedBrush}" FontSize="12" />
         </Border>
     </Grid>

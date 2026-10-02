@@ -50,6 +50,8 @@ public sealed class ChatGptBrowserService : IDisposable
 
     public IReadOnlyList<IPage> GetWorkerPages(int workerCount)
     {
+        WorkerCountPolicy.Validate(workerCount);
+
         if (_browser is null)
         {
             throw new InvalidOperationException("Chưa kết nối Chrome.");

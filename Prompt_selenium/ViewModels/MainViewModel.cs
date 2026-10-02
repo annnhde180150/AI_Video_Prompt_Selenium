@@ -31,7 +31,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private int _debugPort = 9222;
 
     [ObservableProperty]
-    private int _workerCount = 5;
+    private int _workerCount = WorkerCountPolicy.Default;
 
     [ObservableProperty]
     private int _responseTimeoutMinutes = 10;
@@ -44,6 +44,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     private string _prompt3 = string.Empty;
+
+    [ObservableProperty]
+    private PromptRunMode _runMode = PromptRunMode.ThreePrompts;
 
     [ObservableProperty]
     private int _connectedTabs;
@@ -77,18 +80,57 @@ public partial class MainViewModel : ObservableObject, IDisposable
             AddLog($"WARNING: {exception.Message}");
         }
 
-        AddLog("Hãy launch Chrome, đăng nhập ChatGPT và giữ đủ 5 tab trước khi Connect.");
+        AddLog($"Hãy launch Chrome, đăng nhập ChatGPT và giữ đủ {WorkerCount} tab trước khi Connect.");
     }
 
     public ObservableCollection<string> LogEntries { get; } = [];
     public bool IsNotBusy => !IsBusy;
     public string ProgressText => $"{CompletedStories} / {TotalStories}";
     public string ConnectionText => $"Đã kết nối {ConnectedTabs} tab ChatGPT";
+    public bool IsTwoPromptMode
+    {
+        get => RunMode == PromptRunMode.TwoPrompts;
+        set
+        {
+            if (value)
+            {
+                RunMode = PromptRunMode.TwoPrompts;
+            }
+        }
+    }
+
+    public bool IsThreePromptMode
+    {
+        get => RunMode == PromptRunMode.ThreePrompts;
+        set
+        {
+            if (value)
+            {
+                RunMode = PromptRunMode.ThreePrompts;
+            }
+        }
+    }
+
+    public string WorkflowSummary => RunMode == PromptRunMode.TwoPrompts
+        ? $"Excel → {WorkerCount} ChatGPT web workers → Prompt 1 → Prompt 2 → Final Excel"
+        : $"Excel → {WorkerCount} ChatGPT web workers → Prompt 1 → Prompt 2 → Prompt 3 → Final Excel";
+
+    public string WorkflowHelpText => RunMode == PromptRunMode.TwoPrompts
+        ? "Mỗi story dùng chat mới; Prompt 1 gắn story Excel và Prompt 2 gửi tiếp trong cùng chat."
+        : "Mỗi story dùng chat mới; chỉ Prompt 1 gắn story Excel. Prompt 2 và 3 gửi tiếp nguyên văn trong cùng chat.";
 
     partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(IsNotBusy));
     partial void OnCompletedStoriesChanged(int value) => OnPropertyChanged(nameof(ProgressText));
     partial void OnTotalStoriesChanged(int value) => OnPropertyChanged(nameof(ProgressText));
     partial void OnConnectedTabsChanged(int value) => OnPropertyChanged(nameof(ConnectionText));
+    partial void OnWorkerCountChanged(int value) => OnPropertyChanged(nameof(WorkflowSummary));
+    partial void OnRunModeChanged(PromptRunMode value)
+    {
+        OnPropertyChanged(nameof(IsTwoPromptMode));
+        OnPropertyChanged(nameof(IsThreePromptMode));
+        OnPropertyChanged(nameof(WorkflowSummary));
+        OnPropertyChanged(nameof(WorkflowHelpText));
+    }
 
     [RelayCommand]
     private void BrowseInput()
@@ -251,6 +293,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             var results = await _automationService.ProcessAsync(
                 stories,
                 prompts,
+                RunMode,
                 WorkerCount,
                 TimeSpan.FromMinutes(ResponseTimeoutMinutes),
                 progress,
@@ -258,7 +301,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             StatusText = "Đang ghi Excel kết quả...";
             await Task.Run(
-                () => _excelService.WriteResults(OutputPath, results),
+                () => _excelService.WriteResults(OutputPath, results, RunMode),
                 _cancellationTokenSource.Token);
             CompletedStories = TotalStories;
             StatusText = "Hoàn thành";
@@ -318,10 +361,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             throw new InvalidDataException("Debug port phải nằm trong khoảng 1024–65535.");
         }
 
-        if (WorkerCount is < 1 or > 5)
-        {
-            throw new InvalidDataException("Số worker phải từ 1 đến 5.");
-        }
+        WorkerCountPolicy.Validate(WorkerCount);
     }
 
     private void ValidateAll()
@@ -356,7 +396,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Prompt1 = Prompt1,
             Prompt2 = Prompt2,
             Prompt3 = Prompt3
-        });
+        }, RunMode);
     }
 
     private void ShowError(string title, Exception exception)

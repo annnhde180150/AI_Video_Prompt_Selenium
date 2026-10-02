@@ -19,6 +19,8 @@ public sealed class ChromeLauncher
 
     public void Launch(string chromePath, int debugPort, int tabCount)
     {
+        WorkerCountPolicy.Validate(tabCount);
+
         if (!File.Exists(chromePath))
         {
             throw new FileNotFoundException("Không tìm thấy chrome.exe.", chromePath);

@@ -15,7 +15,7 @@ public sealed class PromptTemplateService
             Prompt2 = LoadPromptFile("Prompt2.md"),
             Prompt3 = LoadPromptFile("Prompt3.md")
         };
-        Validate(prompts);
+        Validate(prompts, PromptRunMode.ThreePrompts);
         return prompts;
     }
 
@@ -30,12 +30,25 @@ public sealed class PromptTemplateService
         return File.ReadAllText(path).Trim();
     }
 
-    public static void Validate(PromptSet prompts)
+    public static void Validate(PromptSet prompts, PromptRunMode runMode)
     {
         ValidateTemplate(prompts.Prompt1, "Prompt 1");
         ValidateFollowUpPrompt(prompts.Prompt2, "Prompt 2");
-        ValidateFollowUpPrompt(prompts.Prompt3, "Prompt 3");
+        if (runMode == PromptRunMode.ThreePrompts)
+        {
+            ValidateFollowUpPrompt(prompts.Prompt3, "Prompt 3");
+        }
+
+        _ = GetStepCount(runMode);
     }
+
+    public static int GetStepCount(PromptRunMode runMode) =>
+        runMode switch
+        {
+            PromptRunMode.TwoPrompts => 2,
+            PromptRunMode.ThreePrompts => 3,
+            _ => throw new ArgumentOutOfRangeException(nameof(runMode), runMode, "Unsupported prompt run mode.")
+        };
 
     public static string RenderForStep(PromptSet prompts, int step, string story) =>
         step switch

@@ -10,13 +10,15 @@ public sealed class StoryAutomationService(ChatGptBrowserService browserService)
     public async Task<IReadOnlyList<StoryResult>> ProcessAsync(
         IReadOnlyList<StoryInput> stories,
         PromptSet prompts,
+        PromptRunMode runMode,
         int workerCount,
         TimeSpan responseTimeout,
         IProgress<AutomationProgress>? progress,
         CancellationToken cancellationToken)
     {
-        PromptTemplateService.Validate(prompts);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(workerCount);
+        PromptTemplateService.Validate(prompts, runMode);
+        WorkerCountPolicy.Validate(workerCount);
+        var stepCount = PromptTemplateService.GetStepCount(runMode);
 
         var pages = browserService.GetWorkerPages(workerCount);
         var queue = new ConcurrentQueue<StoryInput>(stories);
@@ -49,8 +51,8 @@ public sealed class StoryAutomationService(ChatGptBrowserService browserService)
                 try
                 {
                     await browserService.StartNewChatAsync(page, failureCancellation.Token);
-                    var promptOutputs = new string[3];
-                    for (var step = 1; step <= 3; step++)
+                    var promptOutputs = new[] { string.Empty, string.Empty, string.Empty };
+                    for (var step = 1; step <= stepCount; step++)
                     {
                         failureCancellation.Token.ThrowIfCancellationRequested();
                         progress?.Report(new AutomationProgress(

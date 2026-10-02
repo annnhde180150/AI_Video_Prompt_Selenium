@@ -33,7 +33,7 @@ public sealed class ExcelServiceTests
             [
                 new StoryResult(1, 4, "P1 second", "P2 second", "P3 second"),
                 new StoryResult(0, 2, "P1 first", "P2 first", "P3 first")
-            ]);
+            ], PromptRunMode.ThreePrompts);
 
             using var output = new XLWorkbook(outputPath);
             var outputSheet = output.Worksheet(1);
@@ -56,12 +56,12 @@ public sealed class ExcelServiceTests
     }
 
     [Fact]
-    public void WriteResults_SplitsLongOutputsIntoCellsInTheirOwnColumnsWithoutDataLoss()
+    public void WriteResults_SplitsPrompt3AcrossColumnsAndKeepsPrompt1And2VerticalWithoutDataLoss()
     {
         var outputPath = TempPath();
         var prompt1Output = new string('A', 70_000);
         var prompt2Output = new string('B', 32_768);
-        var prompt3Output = string.Concat(Enumerable.Repeat("\U0001F642", 20_000));
+        var prompt3Output = string.Concat(Enumerable.Repeat("\U0001F642", 40_000));
 
         try
         {
@@ -69,18 +69,20 @@ public sealed class ExcelServiceTests
             service.WriteResults(outputPath,
             [
                 new StoryResult(0, 2, prompt1Output, prompt2Output, prompt3Output)
-            ]);
+            ], PromptRunMode.ThreePrompts);
 
             using var output = new XLWorkbook(outputPath);
             var outputSheet = output.Worksheet(1);
             var lastRow = outputSheet.LastRowUsed()!.RowNumber();
 
             Assert.Equal(4, lastRow);
-            Assert.Equal(3, outputSheet.LastColumnUsed()!.ColumnNumber());
+            Assert.Equal(5, outputSheet.LastColumnUsed()!.ColumnNumber());
+            Assert.Equal(string.Empty, outputSheet.Cell(1, 4).GetString());
+            Assert.Equal(string.Empty, outputSheet.Cell(1, 5).GetString());
 
             for (var row = 2; row <= lastRow; row++)
             {
-                for (var column = 1; column <= 3; column++)
+                for (var column = 1; column <= 5; column++)
                 {
                     Assert.True(outputSheet.Cell(row, column).GetString().Length <= 32_767);
                 }
@@ -88,7 +90,37 @@ public sealed class ExcelServiceTests
 
             Assert.Equal(prompt1Output, JoinColumn(outputSheet, 1, lastRow));
             Assert.Equal(prompt2Output, JoinColumn(outputSheet, 2, lastRow));
-            Assert.Equal(prompt3Output, JoinColumn(outputSheet, 3, lastRow));
+            Assert.Equal(
+                prompt3Output,
+                string.Concat(Enumerable.Range(3, 3)
+                    .Select(column => outputSheet.Cell(2, column).GetString())));
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public void WriteResults_TwoPromptModeWritesOnlyTwoColumnsAndIgnoresPrompt3Output()
+    {
+        var outputPath = TempPath();
+        try
+        {
+            var service = new ExcelService();
+            service.WriteResults(outputPath,
+            [
+                new StoryResult(0, 2, "P1", "P2", "This must not be exported")
+            ], PromptRunMode.TwoPrompts);
+
+            using var output = new XLWorkbook(outputPath);
+            var outputSheet = output.Worksheet(1);
+
+            Assert.Equal("Prompt 1 Output", outputSheet.Cell(1, 1).GetString());
+            Assert.Equal("Prompt 2 Output", outputSheet.Cell(1, 2).GetString());
+            Assert.Equal(2, outputSheet.LastColumnUsed()!.ColumnNumber());
+            Assert.Equal("P1", outputSheet.Cell(2, 1).GetString());
+            Assert.Equal("P2", outputSheet.Cell(2, 2).GetString());
         }
         finally
         {
